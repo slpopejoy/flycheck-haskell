@@ -94,9 +94,9 @@ instance ToSexp Sexp where
 cons :: (ToSexp a, ToSexp b) => a -> [b] -> Sexp
 cons h t = SList (toSexp h : map toSexp t)
 
-distDir :: TargetTool -> FilePath
-distDir Cabal = defaultDistPref
-distDir Stack = ".stack-work" </> defaultDistPref
+distDir :: TargetTool -> PackageDescription -> FilePath
+distDir Cabal pkgDesc = "dist-newstyle" </> "build" </> display (package pkgDesc)
+distDir Stack _ = ".stack-work" </> defaultDistPref
                               </> display buildPlatform
                               </> "Cabal-" ++ showVersion cabalVersion
 
@@ -106,7 +106,7 @@ getBuildDirectories tool pkgDesc cabalDir =
         Just _ -> buildDir : buildDirs
         Nothing -> buildDirs
   where
-    buildDir = cabalDir </> distDir tool </> "build"
+    buildDir = cabalDir </> distDir tool pkgDesc </> "build"
     autogenDir = buildDir </> "autogen"
     executableBuildDir e = buildDir </> exeName e </> (exeName e ++ "-tmp")
     buildDirs = autogenDir : map executableBuildDir (executables pkgDesc)
@@ -115,9 +115,9 @@ getSourceDirectories :: [BuildInfo] -> FilePath -> [String]
 getSourceDirectories buildInfo cabalDir =
     map (cabalDir </>) (concatMap hsSourceDirs buildInfo)
 
-getAutogenDir :: TargetTool -> FilePath -> FilePath
-getAutogenDir tool cabalDir =
-    cabalDir </> distDir tool </> "build" </> "autogen"
+getAutogenDir :: TargetTool -> PackageDescription -> FilePath -> FilePath
+getAutogenDir tool pd cabalDir =
+    cabalDir </> distDir tool pd </> "build" </> "autogen"
 
 allowedOptions :: [String]
 allowedOptions =
@@ -175,8 +175,8 @@ dumpPackageDescription pkgDesc cabalFile =
                  (buildDepends pkgDesc))
     otherOptions =
         nub (filter isAllowedOption (concatMap (hcOptions GHC) buildInfo))
-    autogenDir = normalise (getAutogenDir Cabal cabalDir)
-    autogenDirStack = normalise (getAutogenDir Stack cabalDir)
+    autogenDir = normalise (getAutogenDir Cabal pkgDesc cabalDir)
+    autogenDirStack = normalise (getAutogenDir Stack pkgDesc cabalDir)
 
 dumpCabalConfiguration :: FilePath -> IO ()
 dumpCabalConfiguration cabalFile = do
